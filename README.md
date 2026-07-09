@@ -28,12 +28,16 @@ Pipeline stages implemented:
    `Provider` is registered for its `capability`; `providers/fake` is a
    fake provider that just echoes back a `Plan`, so the pipeline can be
    proven end-to-end without a cloud credential in sight
+5. **Incremental compilation** — pass `--manifest <path>` (or
+   `manifest_path=` to `compile_spec`) and a node whose content hash matches
+   the previous compile is skipped entirely: no `validate()`, no `plan()`
+   call. A node's hash already folds in its dependencies' hashes, so this
+   alone is enough to detect "this node or anything upstream of it changed"
+   (`epc.statestore`, `tests/test_incremental.py`)
 
 Explicitly **not** in this repo yet (see architecture doc §20 for why):
-policy pass, real optimizer passes, incremental compilation *diffing*
-(the IR node carries a `hash` field, but nothing compares it against a
-stored manifest yet), control plane (API/Scheduler/Queue/Worker),
-reconciliation, event bus, real providers.
+policy pass, real optimizer passes, control plane (API/Scheduler/Queue/
+Worker), reconciliation, event bus, real providers.
 
 ## Run the tests
 
@@ -42,10 +46,18 @@ pip install -e ".[dev]"
 pytest
 ```
 
+## Run the compiler by hand
+
+```bash
+python -m epc compile tests/fixtures/data_platform.yaml
+python -m epc compile tests/fixtures/data_platform.yaml --manifest /tmp/epc-manifest.json
+python -m epc compile tests/fixtures/data_platform.yaml --manifest /tmp/epc-manifest.json  # second run: everything skipped
+```
+
 ## Layout
 
 ```
-src/epc/            compiler frontend — parser, ast, symboltable, normalizer, dag, provider, pipeline
-providers/fake/      a fake Provider implementation, used only by tests
-tests/               one test module per pipeline stage + one end-to-end pipeline test
+src/epc/            compiler frontend — parser, ast, symboltable, normalizer, dag, provider, statestore, pipeline, cli
+providers/fake/      a fake Provider implementation, used by tests and the CLI
+tests/               one test module per pipeline stage + incremental compilation + end-to-end pipeline
 ```
