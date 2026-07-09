@@ -1,38 +1,39 @@
 from .edges import DataFlowEdge, DependencyEdge, Edge, ExecutionEdge, PolicyEdge
 from .graph import Checkpoint, ExecutionBatch, ExecutionPlan, IRGraph, to_execution_plan
 from .nodes import (
-    NODE_TYPES,
+    NODE_CLASS_BY_KIND,
     ComputeNode,
     DataPlatformNode,
+    ExtensionNode,
     IdentityNode,
     IRNode,
     NetworkNode,
-    PipelineNode,
+    NodeKind,
     PolicyNode,
     SecretNode,
+    ServiceNode,
     StorageNode,
-    UnknownNodeKindError,
-    node_class_for,
+    WorkflowNode,
 )
-from .schema import IR_VERSION, NODE_KINDS
+from .schema import IR_VERSION
 from .serializer import UnsupportedIRVersionError, from_dict, from_json, to_dict, to_json
 from .validator import validate_graph
 
 __all__ = [
     "IR_VERSION",
-    "NODE_KINDS",
+    "NodeKind",
     "IRNode",
     "ComputeNode",
     "StorageNode",
-    "SecretNode",
-    "IdentityNode",
     "NetworkNode",
-    "PolicyNode",
-    "PipelineNode",
+    "IdentityNode",
+    "SecretNode",
     "DataPlatformNode",
-    "NODE_TYPES",
-    "node_class_for",
-    "UnknownNodeKindError",
+    "ServiceNode",
+    "WorkflowNode",
+    "PolicyNode",
+    "ExtensionNode",
+    "NODE_CLASS_BY_KIND",
     "Edge",
     "DependencyEdge",
     "PolicyEdge",

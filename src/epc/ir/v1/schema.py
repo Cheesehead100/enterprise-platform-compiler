@@ -10,14 +10,3 @@ directly. `epc.ir.v1.validator` is the in-process equivalent for now.
 """
 
 IR_VERSION = "1.0"
-
-NODE_KINDS = (
-    "compute",
-    "storage",
-    "secret",
-    "identity",
-    "network",
-    "policy",
-    "pipeline",
-    "data-platform",
-)

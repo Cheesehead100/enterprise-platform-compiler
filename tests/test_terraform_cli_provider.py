@@ -16,7 +16,7 @@ pytestmark = pytest.mark.skipif(not HAS_CLI, reason="no terraform/tofu binary on
 
 
 def _node() -> StorageNode:
-    return StorageNode(id="storage.dataLake", properties={"tier": "Standard_LRS"})
+    return StorageNode(id="storage.dataLake", capability="storage", properties={"tier": "Standard_LRS"})
 
 
 def test_initialize_detects_a_supported_version():

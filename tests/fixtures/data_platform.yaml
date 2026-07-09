@@ -29,12 +29,15 @@ spec:
       dependsOn: ["network.firewall"]
       properties: {}
 
-    - capability: data-platform
+    # "governance" is a domain concept, kept as the capability name rather than
+    # forced into "data-platform" -- the compiler still resolves it to
+    # NodeKind.DATA_PLATFORM under the hood (epc.capabilities.CAPABILITY_KINDS)
+    - capability: governance
       name: unityCatalog
       dependsOn: ["compute.databricks", "storage.dataLake"]
       properties: {}
 
     - capability: pipeline
       name: pipelines
-      dependsOn: ["data-platform.unityCatalog"]
+      dependsOn: ["governance.unityCatalog"]
       properties: {}

@@ -48,27 +48,64 @@ The IR is the compiler's ABI: every provider, every future optimization
 pass, and any future non-YAML frontend depends on this shape, so it's a
 versioned package, not a module that happens to hold some dataclasses.
 
+**Two separate axes per node, not one:**
+
+- `kind` (`NodeKind`) — a small, closed enum of infrastructure *primitives*:
+  `compute`, `storage`, `network`, `identity`, `secret`, `data-platform`,
+  `service`, `workflow`, `policy`, `extension`. What the DAG, the scheduler,
+  and optimization passes reason about. Frozen — a tenth kind is an IR v2
+  decision.
+- `capability` (`str`) — an open, growing vocabulary of *what the node does*:
+  `"storage"`, `"monitoring"`, `"gitops"`, `"governance"`, whatever a
+  provider registry knows how to resolve. What providers dispatch on.
+  Extensible — adding a capability never touches a type.
+
+`ServiceNode` is deliberately broad: monitoring, logging, catalog,
+service-discovery, artifact-repository, gitops, cost, ai, event-bus, and
+approval all share this one kind — modeling each as its own node subclass
+doesn't scale to a 20-capability platform catalog. `ExtensionNode`
+(`kind=extension`) is the escape hatch: a capability the routing table
+doesn't recognize compiles fine anyway instead of failing, which is what
+keeps IR v1 frozen while the capability catalog keeps growing. The
+capability → kind routing table lives in `epc/capabilities.py`, deliberately
+*outside* the `ir` package — it's compiler policy, not part of the frozen
+ABI, and grows independently of it.
+
 ```
 epc/ir/v1/
-  nodes.py        IRNode base + 8 explicit kinds (ComputeNode, StorageNode,
-                   SecretNode, IdentityNode, NetworkNode, PolicyNode,
-                   PipelineNode, DataPlatformNode) — capability is derived
-                   from the node's type, not a separate field that could drift
+  nodes.py        NodeKind enum + IRNode base + 9 explicit kinds (Compute,
+                   Storage, Network, Identity, Secret, DataPlatform, Service,
+                   Workflow, Policy) + ExtensionNode — capability is a real,
+                   open field, independent of which kind subclass it's on
   edges.py         Edge base + DependencyEdge (populated), PolicyEdge,
                    DataFlowEdge, ExecutionEdge (typed, not yet constructed —
                    add call sites when a pass needs to distinguish them)
   graph.py         IRGraph, ExecutionBatch, ExecutionPlan, Checkpoint
   schema.py        IR_VERSION = "1.0"
-  serializer.py    to_dict/from_dict/to_json/from_json, IR_VERSION-stamped,
-                   rejects a mismatched version rather than guessing
+  serializer.py    to_dict/from_dict/to_json/from_json — kind and capability
+                    persisted separately, IR_VERSION-stamped, rejects a
+                    mismatched version rather than guessing
   validator.py     structural checks (dangling deps) independent of the
                    normalizer, for IR arriving from outside this process
+
+epc/capabilities.py   CAPABILITY_KINDS routing table (open, hand-maintained
+                       for now) + kind_for_capability/node_class_for —
+                       intentionally outside epc.ir, see module docstring
 ```
 
 `epc.ir` re-exports the current version's public API, so bumping the active
 version later is a one-line change there instead of a repo-wide import
 rewrite (`from epc.ir import StorageNode`, not `from epc.ir.v1.nodes import
 StorageNode`, everywhere outside the `ir` package itself).
+
+**What IR v1 freezes, and what stays deliberately open:**
+
+| Frozen (an IR v2 decision to change) | Extensible (changes anytime) |
+|---|---|
+| Graph structure, node identity | Capability names |
+| Dependency model | Provider names |
+| Execution batches, checkpoints | Resource properties/attributes |
+| Serialization shape, lifecycle semantics | Service taxonomy (what's a `ServiceNode`) |
 
 Explicitly **not** in this repo yet, in roadmap order: a provider
 compliance test suite every provider must pass (including capability
@@ -102,10 +139,10 @@ python -m epc compile tests/fixtures/data_platform.yaml --manifest /tmp/epc-mani
 ## Layout
 
 ```
-src/epc/                     compiler frontend — parser, ast, symboltable, normalizer, dag, provider, config, statestore, pipeline, cli
+src/epc/                     compiler frontend — parser, ast, symboltable, normalizer, dag, provider, capabilities, config, statestore, pipeline, cli
 src/epc/ir/v1/                 frozen, versioned IR — nodes, edges, graph, schema, serializer, validator
 providers/fake/               a fake Provider implementation, used by tests and as the CLI default
 providers/terraform_cli/      real OpenTofu/Terraform CLI adapter — validate/plan only, apply disabled
 examples/providers/           example `providers:` config files for --providers
-tests/                        one module per pipeline stage, the IR package, incremental compilation, provider swap, config resolution, and the CLI end to end
+tests/                        one module per pipeline stage, the IR package, capability routing, incremental compilation, provider swap, config resolution, and the CLI end to end
 ```

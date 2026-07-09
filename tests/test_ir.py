@@ -9,11 +9,11 @@ import pytest
 from epc.ir import (
     IR_VERSION,
     NetworkNode,
+    NodeKind,
+    ServiceNode,
     StorageNode,
-    UnknownNodeKindError,
     UnsupportedIRVersionError,
     from_dict,
-    node_class_for,
     to_dict,
     to_execution_plan,
     validate_graph,
@@ -22,28 +22,29 @@ from epc.ir.v1.graph import IRGraph
 
 
 def _two_node_graph() -> IRGraph:
-    storage = StorageNode(id="storage.dataLake", properties={"tier": "Standard_LRS"})
-    network = NetworkNode(id="network.endpoint", depends_on={"storage.dataLake"})
+    storage = StorageNode(id="storage.dataLake", capability="storage", properties={"tier": "Standard_LRS"})
+    network = NetworkNode(id="network.endpoint", capability="network", depends_on={"storage.dataLake"})
     storage.depended_on_by.add("network.endpoint")
     return IRGraph(nodes={"storage.dataLake": storage, "network.endpoint": network})
 
 
-def test_node_class_for_resolves_known_kinds():
-    assert node_class_for("storage") is StorageNode
-    assert node_class_for("network") is NetworkNode
-
-
-def test_node_class_for_unknown_kind_raises():
-    with pytest.raises(UnknownNodeKindError):
-        node_class_for("quantum-flux-capacitor")
-
-
-def test_capability_is_derived_from_the_node_type_not_a_separate_field():
-    node = StorageNode(id="storage.x")
+def test_kind_is_a_closed_structural_axis_separate_from_capability():
+    node = StorageNode(id="storage.x", capability="storage")
+    assert type(node).kind == NodeKind.STORAGE
     assert node.capability == "storage"
 
 
-def test_serializer_round_trip_preserves_shape():
+def test_service_node_lets_unrelated_capabilities_share_one_kind():
+    """monitoring and gitops are structurally the same shape (a platform
+    service) even though they're unrelated domains -- ServiceNode exists so
+    that doesn't require two node types."""
+    monitoring = ServiceNode(id="service.prom", capability="monitoring")
+    gitops = ServiceNode(id="service.argocd", capability="gitops")
+    assert type(monitoring) is type(gitops) is ServiceNode
+    assert monitoring.capability != gitops.capability
+
+
+def test_serializer_round_trip_preserves_kind_and_capability_separately():
     graph = _two_node_graph()
     graph.compute_hashes(["storage.dataLake", "network.endpoint"])
 
@@ -52,6 +53,7 @@ def test_serializer_round_trip_preserves_shape():
     assert set(restored.nodes) == set(graph.nodes)
     assert isinstance(restored.nodes["storage.dataLake"], StorageNode)
     assert isinstance(restored.nodes["network.endpoint"], NetworkNode)
+    assert restored.nodes["storage.dataLake"].capability == "storage"
     assert restored.nodes["storage.dataLake"].properties == {"tier": "Standard_LRS"}
     assert restored.nodes["network.endpoint"].depends_on == {"storage.dataLake"}
     assert restored.nodes["storage.dataLake"].depended_on_by == {"network.endpoint"}

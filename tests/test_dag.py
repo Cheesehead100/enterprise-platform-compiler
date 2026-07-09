@@ -19,7 +19,7 @@ def test_batches_match_architecture_doc_worked_example():
         ["network.privateEndpoint"],
         ["network.firewall"],
         ["compute.databricks"],
-        ["data-platform.unityCatalog"],
+        ["governance.unityCatalog"],
         ["pipeline.pipelines"],
     ]
 

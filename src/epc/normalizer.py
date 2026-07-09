@@ -9,7 +9,8 @@ lists) is needed; add Policy when a real policy engine is wired in.
 from __future__ import annotations
 
 from .ast import PlatformSpecAST, Ref
-from .ir import IRGraph, IRNode, node_class_for
+from .capabilities import node_class_for
+from .ir import IRGraph, IRNode
 from .symboltable import SymbolTable
 
 
@@ -36,9 +37,11 @@ def normalize(ast: PlatformSpecAST) -> IRGraph:
             else:
                 resolved_properties[key] = value
 
-        node_cls = node_class_for(resource.capability)  # raises UnknownNodeKindError if not a known IR node kind
+        # unrecognized capabilities resolve to ExtensionNode (kind=extension), not a compile error
+        node_cls = node_class_for(resource.capability)
         graph_nodes[resource.id] = node_cls(
             id=resource.id,
+            capability=resource.capability,
             properties=resolved_properties,
             depends_on=depends_on,
         )

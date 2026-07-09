@@ -15,8 +15,8 @@ def test_normalize_resolves_spec_ref():
 def test_normalize_builds_depended_on_by():
     graph = normalize(parse(FIXTURE))
     # unityCatalog depends directly on both databricks AND dataLake (the fan-in)
-    assert "data-platform.unityCatalog" in graph.nodes["storage.dataLake"].depended_on_by
-    assert "data-platform.unityCatalog" in graph.nodes["compute.databricks"].depended_on_by
+    assert "governance.unityCatalog" in graph.nodes["storage.dataLake"].depended_on_by
+    assert "governance.unityCatalog" in graph.nodes["compute.databricks"].depended_on_by
 
 
 def test_undefined_dependency_raises():

@@ -1,6 +1,10 @@
 """IRGraph <-> dict/JSON, with IR_VERSION embedded on every serialized graph —
 the compiler's ABI has to be checkable by whatever reads it, not just by
 whatever wrote it.
+
+`kind` and `capability` are persisted separately (see nodes.py's module
+docstring for why they're two different axes) -- `kind` picks which node
+class from_dict() reconstructs, `capability` is carried through unchanged.
 """
 
 from __future__ import annotations
@@ -9,7 +13,7 @@ import json
 from typing import Any
 
 from .graph import IRGraph
-from .nodes import node_class_for
+from .nodes import NODE_CLASS_BY_KIND, NodeKind
 from .schema import IR_VERSION
 
 
@@ -24,7 +28,8 @@ def to_dict(graph: IRGraph) -> dict[str, Any]:
         "ir_version": IR_VERSION,
         "nodes": [
             {
-                "kind": node.capability,
+                "kind": type(node).kind.value,
+                "capability": node.capability,
                 "id": node.id,
                 "properties": node.properties,
                 "depends_on": sorted(node.depends_on),
@@ -42,9 +47,10 @@ def from_dict(data: dict[str, Any]) -> IRGraph:
 
     nodes = {}
     for entry in data["nodes"]:
-        node_cls = node_class_for(entry["kind"])
+        node_cls = NODE_CLASS_BY_KIND[NodeKind(entry["kind"])]
         nodes[entry["id"]] = node_cls(
             id=entry["id"],
+            capability=entry["capability"],
             properties=entry.get("properties", {}),
             depends_on=set(entry.get("depends_on", [])),
             hash=entry.get("hash"),
