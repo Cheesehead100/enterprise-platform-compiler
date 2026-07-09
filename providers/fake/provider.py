@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from epc.ir import ResourceGraphNode
+from epc.ir import IRNode
 from epc.provider import Plan, Provider, ValidationResult
 
 
@@ -18,10 +18,10 @@ class FakeProvider(Provider):
     def initialize(self, config: dict[str, Any]) -> None:
         pass
 
-    def validate(self, node: ResourceGraphNode) -> ValidationResult:
+    def validate(self, node: IRNode) -> ValidationResult:
         return ValidationResult(ok=True)
 
-    def plan(self, node: ResourceGraphNode) -> Plan:
+    def plan(self, node: IRNode) -> Plan:
         return Plan(node_id=node.id, provider=self.name, diff={"create": node.properties})
 
     def apply(self, plan: Plan) -> dict[str, Any]:

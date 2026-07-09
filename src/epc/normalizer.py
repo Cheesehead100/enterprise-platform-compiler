@@ -9,16 +9,16 @@ lists) is needed; add Policy when a real policy engine is wired in.
 from __future__ import annotations
 
 from .ast import PlatformSpecAST, Ref
-from .ir import ResourceGraph, ResourceGraphNode
+from .ir import IRGraph, IRNode, node_class_for
 from .symboltable import SymbolTable
 
 
-def normalize(ast: PlatformSpecAST) -> ResourceGraph:
+def normalize(ast: PlatformSpecAST) -> IRGraph:
     symbols = SymbolTable(ast.spec_properties)
     for resource in ast.resources:
         symbols.register(resource)
 
-    graph_nodes: dict[str, ResourceGraphNode] = {}
+    graph_nodes: dict[str, IRNode] = {}
     for resource in ast.resources:
         depends_on = set(resource.depends_on)
         for dep_id in resource.depends_on:
@@ -36,9 +36,9 @@ def normalize(ast: PlatformSpecAST) -> ResourceGraph:
             else:
                 resolved_properties[key] = value
 
-        graph_nodes[resource.id] = ResourceGraphNode(
+        node_cls = node_class_for(resource.capability)  # raises UnknownNodeKindError if not a known IR node kind
+        graph_nodes[resource.id] = node_cls(
             id=resource.id,
-            capability=resource.capability,
             properties=resolved_properties,
             depends_on=depends_on,
         )
@@ -47,4 +47,4 @@ def normalize(ast: PlatformSpecAST) -> ResourceGraph:
         for dep_id in node.depends_on:
             graph_nodes[dep_id].depended_on_by.add(node.id)
 
-    return ResourceGraph(nodes=graph_nodes)
+    return IRGraph(nodes=graph_nodes)

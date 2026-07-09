@@ -10,7 +10,7 @@ FIXTURE = open("tests/fixtures/data_platform.yaml").read()
 
 def _full_registry() -> ProviderRegistry:
     registry = ProviderRegistry()
-    for capability in ("storage", "network", "compute", "governance"):
+    for capability in ("storage", "network", "compute", "data-platform", "pipeline"):
         registry.register(capability, FakeProvider(name=f"fake-{capability}"))
     return registry
 
@@ -29,7 +29,7 @@ def test_every_node_has_a_content_hash_after_compile():
     # a node's hash must change if its dependency's hash would change —
     # verified structurally: unityCatalog's hash input includes dataLake's hash
     dataLake_hash = result.graph.nodes["storage.dataLake"].hash
-    unity_deps = result.graph.nodes["governance.unityCatalog"].depends_on
+    unity_deps = result.graph.nodes["data-platform.unityCatalog"].depends_on
     assert "storage.dataLake" in unity_deps
     assert dataLake_hash is not None
 
@@ -37,6 +37,6 @@ def test_every_node_has_a_content_hash_after_compile():
 def test_missing_provider_for_a_capability_raises():
     registry = ProviderRegistry()
     registry.register("storage", FakeProvider())
-    # "network", "compute", "governance" deliberately left unregistered
+    # "network", "compute", "data-platform", "pipeline" deliberately left unregistered
     with pytest.raises(UnknownCapabilityError):
         compile_spec(FIXTURE, registry)

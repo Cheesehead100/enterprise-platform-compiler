@@ -29,12 +29,12 @@ spec:
       dependsOn: ["network.firewall"]
       properties: {}
 
-    - capability: governance
+    - capability: data-platform
       name: unityCatalog
       dependsOn: ["compute.databricks", "storage.dataLake"]
       properties: {}
 
-    - capability: governance
+    - capability: pipeline
       name: pipelines
-      dependsOn: ["governance.unityCatalog"]
+      dependsOn: ["data-platform.unityCatalog"]
       properties: {}

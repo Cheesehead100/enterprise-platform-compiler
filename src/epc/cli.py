@@ -1,9 +1,4 @@
-"""Minimal CLI so the pipeline can be run by hand, not just by pytest.
-
-ponytail: registers a FakeProvider for every capability found in the spec —
-real provider selection via a `providers:` config block (architecture doc §15)
-is Phase 1, once a real provider exists to select.
-"""
+"""Minimal CLI so the pipeline can be run by hand, not just by pytest."""
 
 from __future__ import annotations
 
@@ -12,24 +7,15 @@ import json
 import sys
 from pathlib import Path
 
+from .config import build_registry, load_provider_config
 from .parser import parse
 from .pipeline import compile_spec
-from .provider import ProviderRegistry
 
-
-def _fake_registry(spec_yaml: str) -> ProviderRegistry:
-    # providers/ lives alongside src/, not under it — not an installed
-    # dependency of epc itself, so it isn't on sys.path by default.
-    providers_dir = Path(__file__).resolve().parents[2] / "providers"
-    if str(providers_dir) not in sys.path:
-        sys.path.insert(0, str(providers_dir))
-    from fake.provider import FakeProvider
-
-    ast = parse(spec_yaml)
-    registry = ProviderRegistry()
-    for capability in {r.capability for r in ast.resources}:
-        registry.register(capability, FakeProvider(name=f"fake-{capability}"))
-    return registry
+# providers/ lives alongside src/, not under it — not an installed dependency
+# of epc itself, so it isn't on sys.path by default.
+_PROVIDERS_DIR = Path(__file__).resolve().parents[2] / "providers"
+if str(_PROVIDERS_DIR) not in sys.path:
+    sys.path.insert(0, str(_PROVIDERS_DIR))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -39,10 +25,18 @@ def main(argv: list[str] | None = None) -> int:
     compile_cmd = sub.add_parser("compile", help="compile a PlatformSpec and print its DAG + plans")
     compile_cmd.add_argument("spec_file")
     compile_cmd.add_argument("--manifest", help="path to an incremental-compilation manifest file")
+    compile_cmd.add_argument(
+        "--providers",
+        help="path to a providers.yaml config (architecture doc §15); "
+        "capabilities not listed default to the fake provider",
+    )
 
     args = parser_.parse_args(argv)
     spec_yaml = Path(args.spec_file).read_text()
-    registry = _fake_registry(spec_yaml)
+    ast = parse(spec_yaml)
+    capabilities = {r.capability for r in ast.resources}
+    provider_config = load_provider_config(args.providers) if args.providers else {}
+    registry = build_registry(provider_config, capabilities)
 
     result = compile_spec(spec_yaml, registry, manifest_path=args.manifest)
 

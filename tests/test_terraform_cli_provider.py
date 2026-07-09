@@ -6,7 +6,7 @@ import shutil
 
 import pytest
 
-from epc.ir import ResourceGraphNode
+from epc.ir import StorageNode
 from terraform_cli.provider import CliNotFoundError, TerraformCliProvider
 
 TERRAFORM_BINARY = "tofu" if shutil.which("tofu") else "terraform"
@@ -15,8 +15,8 @@ HAS_CLI = shutil.which(TERRAFORM_BINARY) is not None
 pytestmark = pytest.mark.skipif(not HAS_CLI, reason="no terraform/tofu binary on PATH")
 
 
-def _node() -> ResourceGraphNode:
-    return ResourceGraphNode(id="storage.dataLake", capability="storage", properties={"tier": "Standard_LRS"})
+def _node() -> StorageNode:
+    return StorageNode(id="storage.dataLake", properties={"tier": "Standard_LRS"})
 
 
 def test_initialize_detects_a_supported_version():

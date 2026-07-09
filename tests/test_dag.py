@@ -19,8 +19,8 @@ def test_batches_match_architecture_doc_worked_example():
         ["network.privateEndpoint"],
         ["network.firewall"],
         ["compute.databricks"],
-        ["governance.unityCatalog"],
-        ["governance.pipelines"],
+        ["data-platform.unityCatalog"],
+        ["pipeline.pipelines"],
     ]
 
 
@@ -29,12 +29,12 @@ def test_cycle_is_detected():
 metadata: {name: x}
 spec:
   resources:
-    - capability: a
+    - capability: network
       name: one
-      dependsOn: ["b.two"]
-    - capability: b
+      dependsOn: ["compute.two"]
+    - capability: compute
       name: two
-      dependsOn: ["a.one"]
+      dependsOn: ["network.one"]
 """
     graph = normalize(parse(bad))
     with pytest.raises(CycleError):

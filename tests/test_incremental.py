@@ -18,7 +18,7 @@ spec:
     - capability: network
       name: privateEndpoint
       dependsOn: ["storage.dataLake"]
-    - capability: secrets
+    - capability: secret
       name: dbSecret
       properties:
         rotation: 90
@@ -26,12 +26,12 @@ spec:
 
 V2 = V1.replace("Standard_LRS", "Standard_GRS")
 
-ALL_NODES = {"storage.dataLake", "network.privateEndpoint", "secrets.dbSecret"}
+ALL_NODES = {"storage.dataLake", "network.privateEndpoint", "secret.dbSecret"}
 
 
 def _registry() -> ProviderRegistry:
     registry = ProviderRegistry()
-    for capability in ("storage", "network", "secrets"):
+    for capability in ("storage", "network", "secret"):
         registry.register(capability, FakeProvider(name=f"fake-{capability}"))
     return registry
 
@@ -62,7 +62,7 @@ def test_changing_one_node_only_recompiles_its_subtree(tmp_path):
     # dbSecret has no relation to storage.dataLake -- must be skipped, not
     # regenerated, matching the doc's "don't regenerate networking/IAM/KeyVault"
     # incremental-compilation claim.
-    assert result.skipped == {"secrets.dbSecret"}
+    assert result.skipped == {"secret.dbSecret"}
 
 
 def test_no_manifest_path_means_no_incremental_behavior(tmp_path):

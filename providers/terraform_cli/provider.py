@@ -27,7 +27,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from epc.ir import ResourceGraphNode
+from epc.ir import IRNode
 from epc.provider import Plan, Provider, ValidationResult
 
 MIN_VERSION = (1, 4, 0)  # terraform_data requires Terraform >=1.4 / OpenTofu >=1.6
@@ -55,7 +55,7 @@ class TerraformCliProvider(Provider):
                 f"{self.binary} {'.'.join(map(str, version))} < required {'.'.join(map(str, MIN_VERSION))}"
             )
 
-    def validate(self, node: ResourceGraphNode) -> ValidationResult:
+    def validate(self, node: IRNode) -> ValidationResult:
         with tempfile.TemporaryDirectory(prefix=f"epc-{self.binary}-") as raw_workdir:
             workdir = Path(raw_workdir)
             init = self._prepare_workspace(workdir, node)
@@ -68,7 +68,7 @@ class TerraformCliProvider(Provider):
                 return ValidationResult(ok=True)
             return ValidationResult(ok=False, errors=[d.get("summary", str(d)) for d in payload.get("diagnostics", [])])
 
-    def plan(self, node: ResourceGraphNode) -> Plan:
+    def plan(self, node: IRNode) -> Plan:
         with tempfile.TemporaryDirectory(prefix=f"epc-{self.binary}-") as raw_workdir:
             workdir = Path(raw_workdir)
             init = self._prepare_workspace(workdir, node)
@@ -111,7 +111,7 @@ class TerraformCliProvider(Provider):
 
     # -- internal -----------------------------------------------------------
 
-    def _lower(self, node: ResourceGraphNode) -> dict[str, Any]:
+    def _lower(self, node: IRNode) -> dict[str, Any]:
         """Provider Generation (architecture doc §03 stage 9), narrowed to one
         placeholder resource type -- see module docstring."""
         resource_name = node.id.replace(".", "_").replace("-", "_")
@@ -120,7 +120,7 @@ class TerraformCliProvider(Provider):
             "resource": {"terraform_data": {resource_name: {"input": node.properties}}},
         }
 
-    def _prepare_workspace(self, workdir: Path, node: ResourceGraphNode) -> subprocess.CompletedProcess:
+    def _prepare_workspace(self, workdir: Path, node: IRNode) -> subprocess.CompletedProcess:
         (workdir / "main.tf.json").write_text(json.dumps(self._lower(node)))
         return self._run("init", "-input=false", "-no-color", cwd=workdir)
 

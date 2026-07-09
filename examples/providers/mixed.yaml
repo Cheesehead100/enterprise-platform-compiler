@@ -1,0 +1,19 @@
+# Real storage provisioning via a real CLI, everything else fake -- the
+# realistic shape (architecture doc §15's hybrid.yaml example): most
+# capabilities don't need a real provider wired up yet, one does.
+#
+# Uses "terraform-cli" (binary: terraform) because that's what's actually on
+# PATH in dev environments that don't have OpenTofu installed. Swap to
+# "opentofu" (the architecture doc's OSS-first default, binary: tofu) once
+# `tofu` is on PATH -- same adapter, same behavior, one word different.
+providers:
+  storage:
+    provider: terraform-cli
+  network:
+    provider: fake
+  compute:
+    provider: fake
+  data-platform:
+    provider: fake
+  pipeline:
+    provider: fake

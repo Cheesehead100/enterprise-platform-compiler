@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from .ir import ResourceGraphNode
+from .ir import IRNode
 
 
 @dataclass
@@ -36,10 +36,10 @@ class Provider(ABC):
     def initialize(self, config: dict[str, Any]) -> None: ...
 
     @abstractmethod
-    def validate(self, node: ResourceGraphNode) -> ValidationResult: ...
+    def validate(self, node: IRNode) -> ValidationResult: ...
 
     @abstractmethod
-    def plan(self, node: ResourceGraphNode) -> Plan: ...
+    def plan(self, node: IRNode) -> Plan: ...
 
     @abstractmethod
     def apply(self, plan: Plan) -> dict[str, Any]: ...

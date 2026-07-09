@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from .dag import topological_batches
 from .errors import UnknownCapabilityError
-from .ir import ResourceGraph
+from .ir import IRGraph
 from .normalizer import normalize
 from .parser import parse
 from .provider import Plan, ProviderRegistry
@@ -19,7 +19,7 @@ from .statestore import load_manifest, save_manifest
 
 @dataclass
 class CompileResult:
-    graph: ResourceGraph
+    graph: IRGraph
     batches: list[list[str]]
     plans: dict[str, Plan]
     skipped: set[str] = field(default_factory=set)
@@ -29,7 +29,7 @@ def compile_spec(spec_yaml: str, registry: ProviderRegistry, manifest_path: str 
     """If `manifest_path` is given, this is an incremental compile (architecture
     doc §02): a node whose hash matches the previous manifest is skipped
     entirely — no validate(), no plan() call. A node's hash already includes
-    its resolved dependencies' hashes (see ResourceGraph.compute_hashes), so
+    its resolved dependencies' hashes (see IRGraph.compute_hashes), so
     comparing top-level hashes is sufficient to catch "this node or anything
     upstream of it changed" without any separate dependent-propagation step.
     """

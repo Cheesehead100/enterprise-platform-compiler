@@ -8,10 +8,10 @@ The batches themselves are already correct for that later scheduler to consume.
 from __future__ import annotations
 
 from .errors import CycleError
-from .ir import ResourceGraph
+from .ir import IRGraph
 
 
-def topological_batches(graph: ResourceGraph) -> list[list[str]]:
+def topological_batches(graph: IRGraph) -> list[list[str]]:
     remaining = {node_id: set(node.depends_on) for node_id, node in graph.nodes.items()}
     batches: list[list[str]] = []
 
@@ -29,7 +29,7 @@ def topological_batches(graph: ResourceGraph) -> list[list[str]]:
     return batches
 
 
-def _find_cycle(graph: ResourceGraph, candidates: list[str]) -> list[str]:
+def _find_cycle(graph: IRGraph, candidates: list[str]) -> list[str]:
     """DFS from any still-blocked node to produce a human-readable cycle path."""
     visiting: set[str] = set()
     path: list[str] = []
