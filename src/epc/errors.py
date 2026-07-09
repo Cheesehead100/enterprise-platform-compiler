@@ -37,3 +37,13 @@ class UnknownCapabilityError(CompileError):
         self.node_id = node_id
         self.capability = capability
         super().__init__(f"{node_id}: no provider registered for capability '{capability}'")
+
+
+class GraphValidationError(CompileError):
+    """Raised by epc.passes.ValidationPass — wraps epc.ir.validate_graph's
+    findings (e.g. a dangling dependency left behind by an earlier pass, such
+    as disabling a node something else still depends on)."""
+
+    def __init__(self, findings: list[str]):
+        self.findings = findings
+        super().__init__("; ".join(findings))

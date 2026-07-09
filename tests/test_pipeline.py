@@ -25,13 +25,14 @@ def test_compiles_end_to_end_with_fake_providers():
 def test_every_node_has_a_content_hash_after_compile():
     result = compile_spec(FIXTURE, _full_registry())
     assert all(node.hash for node in result.graph.nodes.values())
+    assert result.graph.nodes["storage.dataLake"].hash is not None
 
-    # a node's hash must change if its dependency's hash would change —
-    # verified structurally: unityCatalog's hash input includes dataLake's hash
-    dataLake_hash = result.graph.nodes["storage.dataLake"].hash
+    # unityCatalog's *direct* dependency on dataLake is transitively implied
+    # by its dependency on databricks (databricks -> firewall -> privateEndpoint
+    # -> dataLake), so DEFAULT_PASSES' DependencySimplificationPass removes it
+    # -- dataLake's hash still reaches unityCatalog's, just through one fewer edge.
     unity_deps = result.graph.nodes["governance.unityCatalog"].depends_on
-    assert "storage.dataLake" in unity_deps
-    assert dataLake_hash is not None
+    assert unity_deps == {"compute.databricks"}
 
 
 def test_missing_provider_for_a_capability_raises():
