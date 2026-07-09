@@ -1,0 +1,40 @@
+# Mirrors the worked DAG example in the architecture doc (§02 Dependency graph
+# & DAG scheduling): storage -> private endpoint -> firewall -> databricks ->
+# unity catalog (fan-in on both databricks AND storage) -> pipelines.
+apiVersion: epc/v1
+kind: PlatformSpec
+metadata:
+  name: data-platform-example
+spec:
+  region: eastus2
+  resources:
+    - capability: storage
+      name: dataLake
+      properties:
+        tier: Standard_LRS
+        region: "ref:spec.region"
+
+    - capability: network
+      name: privateEndpoint
+      dependsOn: ["storage.dataLake"]
+      properties: {}
+
+    - capability: network
+      name: firewall
+      dependsOn: ["network.privateEndpoint"]
+      properties: {}
+
+    - capability: compute
+      name: databricks
+      dependsOn: ["network.firewall"]
+      properties: {}
+
+    - capability: governance
+      name: unityCatalog
+      dependsOn: ["compute.databricks", "storage.dataLake"]
+      properties: {}
+
+    - capability: governance
+      name: pipelines
+      dependsOn: ["governance.unityCatalog"]
+      properties: {}
