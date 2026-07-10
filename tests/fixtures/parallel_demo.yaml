@@ -1,0 +1,39 @@
+# Designed to actually exercise the things a linear fixture can't show:
+# real batch parallelism (three independent nodes share one batch) and a
+# genuine transitive-reduction case (appServer's direct edge to vpc is
+# redundant -- vpc is already reachable via bucket1, bucket2, or dbPassword).
+# Used by both tests/test_parallel_demo.py and examples/generate_demo_data.py
+# so the demo's numbers and the regression test can never drift apart.
+metadata:
+  name: parallel-demo
+spec:
+  resources:
+    - capability: network
+      name: vpc
+      properties: {}
+
+    - capability: storage
+      name: bucket1
+      dependsOn: ["network.vpc"]
+      properties: {}
+
+    - capability: storage
+      name: bucket2
+      dependsOn: ["network.vpc"]
+      properties: {}
+
+    - capability: secret
+      name: dbPassword
+      dependsOn: ["network.vpc"]
+      properties: {}
+
+    - capability: compute
+      name: appServer
+      # network.vpc here is the redundant edge: already reachable via bucket1/bucket2/dbPassword
+      dependsOn: ["storage.bucket1", "storage.bucket2", "secret.dbPassword", "network.vpc"]
+      properties: {}
+
+    - capability: governance
+      name: catalog
+      dependsOn: ["compute.appServer"]
+      properties: {}

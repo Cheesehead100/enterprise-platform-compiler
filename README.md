@@ -117,6 +117,22 @@ already applies to a hypothetical `PolicyPass`.
 python -m epc compile tests/fixtures/data_platform.yaml --analyze
 ```
 
+### Demo: why this beats a naive execution engine
+
+`tests/fixtures/parallel_demo.yaml` is built specifically to show what a
+near-linear fixture like `data_platform.yaml` can't: real batch parallelism
+(three independent nodes — `bucket1`, `bucket2`, `dbPassword` — share one
+batch) and a genuine transitive-reduction case (`appServer`'s direct edge to
+`vpc` is redundant once `bucket1`/`bucket2`/`dbPassword` already reach it).
+`examples/generate_demo_data.py` computes the real numbers —
+`naive_sequential_steps: 6` vs `batched_steps: 4`, one edge removed, a
+4-hop critical path — and `tests/test_parallel_demo.py` asserts the same
+numbers, so the demo and the regression test can't drift apart.
+
+```bash
+python examples/generate_demo_data.py
+```
+
 ### IR v1 — frozen and versioned (`epc/ir/v1/`)
 
 The IR is the compiler's ABI: every provider, every future optimization
@@ -234,5 +250,6 @@ src/epc/passes/                PassManager, CompilerPass implementations, BatchP
 providers/fake/               a fake Provider implementation, used by tests and as the CLI default
 providers/terraform_cli/      real OpenTofu/Terraform CLI adapter — validate/plan only, apply disabled
 examples/providers/           example `providers:` config files for --providers
-tests/                        one module per pipeline stage, the IR package, capability routing, passes, incremental compilation, provider swap, config resolution, and the CLI end to end
+examples/generate_demo_data.py  real before/after/critical-path/batching numbers for the demo fixture
+tests/                        one module per pipeline stage, the IR package, capability routing, passes, analysis passes, the parallel-demo fixture, incremental compilation, provider swap, config resolution, and the CLI end to end
 ```
