@@ -1,9 +1,13 @@
 # Enterprise Platform Compiler
 
-Open-source-first platform compiler: a `PlatformSpec` compiles through a real
-pipeline (parse → AST → normalized IR → dependency graph) before any
-provider — OpenTofu, Terraform Cloud, Vault, ServiceNow, whatever — is
-called. Providers are the codegen backend; they are not the compiler.
+A deterministic compiler that translates declarative platform intent into
+executable infrastructure plans while preserving the evidence required to
+explain every decision.
+
+Open-source-first: a `PlatformSpec` compiles through a real pipeline (parse
+→ AST → normalized IR → dependency graph) before any provider — OpenTofu,
+Terraform Cloud, Vault, ServiceNow, whatever — is called. Providers are the
+codegen backend; they are not the compiler.
 
 Full architecture: see `docs/architecture.html` (design doc, not yet
 committed here — currently lives in the design conversation as two
