@@ -12,6 +12,12 @@ architecture v0.2).
 
 ## Compiler Explainability Contract
 
+*The narrative below is the discovery story — each rule earned by a real
+bug, in commit order. For the settled reference (no narrative, every claim
+cited to a test) — node identity, hash construction, the manifest evidence
+model, valid-`IRGraph` assumptions, and the full failure-mode table — see
+[`docs/COMPILER_SEMANTICS.md`](docs/COMPILER_SEMANTICS.md).*
+
 > For every compiler decision, `epc.explain` must be able to reconstruct the
 > causal path from persisted compiler artifacts (the manifest — hash,
 > properties, dependency edges — plus the current `IRGraph`) alone. **An
