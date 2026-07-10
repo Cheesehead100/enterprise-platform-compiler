@@ -1,7 +1,10 @@
+from .analysis import AnalysisPass, AnalysisResult
 from .base import CompilerPass
 from .batch_planning import BatchPlanner
+from .critical_path import CriticalPathPass, CriticalPathResult
 from .dead_node_elimination import DeadNodeEliminationPass
 from .dependency_simplification import DependencySimplificationPass
+from .graph_statistics import GraphStatistics, GraphStatisticsPass
 from .manager import PassManager
 from .provider_lowering import LoweringResult, ProviderLowering
 from .validation import ValidationPass
@@ -34,4 +37,10 @@ __all__ = [
     "ProviderLowering",
     "LoweringResult",
     "DEFAULT_PASSES",
+    "AnalysisPass",
+    "AnalysisResult",
+    "CriticalPathPass",
+    "CriticalPathResult",
+    "GraphStatisticsPass",
+    "GraphStatistics",
 ]

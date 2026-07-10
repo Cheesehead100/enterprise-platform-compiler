@@ -81,6 +81,42 @@ their outputs (`ExecutionPlan`, `Plan` objects with real side effects) aren't
 an `IRGraph`, and forcing them into that shape for symmetry would misrepresent
 what they do. `epc/passes/base.py`'s docstring explains the split.
 
+**Found, not just refactored:** `DependencySimplificationPass` revealed that
+the architecture doc's own worked "fan-in" example — `unityCatalog`
+depending directly on both `databricks` and `dataLake` — was never a genuine
+fan-in. `dataLake` is already reachable via `databricks → firewall →
+privateEndpoint → dataLake`, so that direct edge is provably redundant; the
+pass correctly collapses it (`tests/test_passes.py`,
+`tests/test_analysis.py`). That's a pass operating on graph semantics, not
+syntax — the actual test of whether "optimization pass" is doing real work
+or just relabeling.
+
+### Analysis passes (`epc/passes/analysis.py` and friends)
+
+Distinct from `CompilerPass` the same way LLVM/MLIR separate transformation
+passes from analysis passes: an `AnalysisPass` observes an `IRGraph` and
+returns an `AnalysisResult` — never mutates the graph, never changes what
+compiles. Two exist:
+
+- **`CriticalPathPass`** — longest dependency chain by node count, computed
+  bottom-up with memoization (`depth(node) = 1 + max(depth(dep) for dep in
+  node.depends_on)`). Correctly agrees with the result on a
+  not-yet-simplified graph, since `max()` already ignores a shorter
+  redundant edge on its own.
+- **`GraphStatisticsPass`** — node/edge counts, per-kind breakdown, max
+  fan-in/fan-out.
+
+Neither runs by default — `compile_spec(..., analyses=[...])` or the CLI's
+`--analyze` flag opt in. Nothing downstream consumes an analysis result yet
+(no bounded worker pool for `CriticalPathPass` to help schedule against), so
+running one unconditionally on every compile would be overhead with no
+payoff — the same "no consumer, no default" reasoning `DEFAULT_PASSES`
+already applies to a hypothetical `PolicyPass`.
+
+```bash
+python -m epc compile tests/fixtures/data_platform.yaml --analyze
+```
+
 ### IR v1 — frozen and versioned (`epc/ir/v1/`)
 
 The IR is the compiler's ABI: every provider, every future optimization
@@ -148,15 +184,22 @@ StorageNode`, everywhere outside the `ir` package itself).
 
 Explicitly **not** in this repo yet, in roadmap order: a provider
 compliance test suite every provider must pass (including capability
-negotiation instead of relying solely on `NotImplementedError`), further
-optimization passes (cost, security-review, parallel-scheduling-aware
-passes — the ones that will likely need the traits system explicitly
-deferred in `epc/ir/v1/nodes.py`), control plane (API/Scheduler/Queue/
-Worker), state manager, reconciliation, event bus, multi-agent AI passes
-(the natural next `CompilerPass` implementations — `CompilerPass` doesn't
-care whether `run()` is deterministic or calls an LLM), SDK/ecosystem
-tooling. `apply()` stays disabled on every provider until its own phase
-explicitly lifts that gate.
+negotiation instead of relying solely on `NotImplementedError`), wiring
+`CriticalPathPass` into a scheduler once a bounded worker pool exists to
+make ordering-within-a-batch matter, pass metadata (`requires`/
+`invalidates`, so a future `PassManager` can skip recomputing an analysis
+nothing downstream touched — deliberately unbuilt until a second analysis
+pass creates a real dependency to track), a provider-lowering *pipeline*
+(generic IR → canonical provider IR → provider-specific IR, letting
+optimization happen after lowering too — an EPC v2 idea, not a v1 gap),
+further optimization passes (cost, security-review — the ones that will
+likely need the traits system explicitly deferred in
+`epc/ir/v1/nodes.py`), control plane (API/Scheduler/Queue/Worker), state
+manager, reconciliation, event bus, multi-agent AI passes (the natural next
+`CompilerPass`/`AnalysisPass` implementations — neither interface cares
+whether `run()` is deterministic or calls an LLM), SDK/ecosystem tooling.
+`apply()` stays disabled on every provider until its own phase explicitly
+lifts that gate.
 
 ## Run the tests
 
@@ -177,6 +220,9 @@ python -m epc compile tests/fixtures/data_platform.yaml --providers examples/pro
 # incremental compilation
 python -m epc compile tests/fixtures/data_platform.yaml --manifest /tmp/epc-manifest.json
 python -m epc compile tests/fixtures/data_platform.yaml --manifest /tmp/epc-manifest.json  # second run: everything skipped
+
+# graph statistics + critical path
+python -m epc compile tests/fixtures/data_platform.yaml --analyze
 ```
 
 ## Layout

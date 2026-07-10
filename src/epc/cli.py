@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .config import build_registry, load_provider_config
 from .parser import parse
+from .passes import CriticalPathPass, GraphStatisticsPass
 from .pipeline import compile_spec
 
 # providers/ lives alongside src/, not under it — not an installed dependency
@@ -30,6 +31,11 @@ def main(argv: list[str] | None = None) -> int:
         help="path to a providers.yaml config (architecture doc §15); "
         "capabilities not listed default to the fake provider",
     )
+    compile_cmd.add_argument(
+        "--analyze",
+        action="store_true",
+        help="run analysis passes (graph statistics, critical path) and print their results",
+    )
 
     args = parser_.parse_args(argv)
     spec_yaml = Path(args.spec_file).read_text()
@@ -38,7 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     provider_config = load_provider_config(args.providers) if args.providers else {}
     registry = build_registry(provider_config, capabilities)
 
-    result = compile_spec(spec_yaml, registry, manifest_path=args.manifest)
+    analyses = [GraphStatisticsPass(), CriticalPathPass()] if args.analyze else None
+    result = compile_spec(spec_yaml, registry, manifest_path=args.manifest, analyses=analyses)
 
     for i, batch in enumerate(result.batches, start=1):
         print(f"batch {i}: {batch}")
@@ -46,6 +53,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"skipped (unchanged): {sorted(result.skipped)}")
     for node_id, plan in result.plans.items():
         print(f"  {node_id} -> {plan.provider}: {json.dumps(plan.diff)}")
+    for name, analysis in result.analyses.items():
+        print(f"analysis[{name}]: {analysis}")
 
     return 0
 
