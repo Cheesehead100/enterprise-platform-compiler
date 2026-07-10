@@ -100,6 +100,20 @@ def explain_recompile(previous: PreviousState, after: IRGraph, node_id: str) -> 
 
     current_deps = set(after_node.depends_on)
 
+    # normalize() can never produce a node whose depends_on points outside
+    # its own graph (undefined references are a compile error at that
+    # stage -- see epc.symboltable), but explain_recompile is a public
+    # function, not gated behind normalize(). A hand-built or corrupted
+    # IRGraph could still reach this point; fail with the missing id named
+    # rather than a bare KeyError three lines down inside a comprehension.
+    missing = sorted(dep_id for dep_id in current_deps if dep_id not in after.nodes)
+    if missing:
+        raise KeyError(
+            f"{node_id!r} depends on {missing!r}, which {'is' if len(missing) == 1 else 'are'} not in the "
+            "current compiled graph -- this graph is internally inconsistent (normalize() should never "
+            "produce this); nothing can be explained from missing evidence"
+        )
+
     # ponytail: re-explains a shared dependency once per path that reaches it
     # (no memoization) -- fine at this scale, would matter on a graph with
     # heavy diamond fan-in.

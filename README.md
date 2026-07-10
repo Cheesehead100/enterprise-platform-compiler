@@ -18,6 +18,34 @@ architecture v0.2).
 > explanation that disagrees with the decision it's explaining is a compiler
 > defect**, not an edge case to note and move past.
 
+```
+                    Intent (spec.yaml)
+                          |
+                          v
+                      IR Graph
+                          |
+              +-----------+-----------+
+              |                       |
+              v                       v
+       Semantic Hashes        Explanation Model
+       (IRGraph.compute_hashes)   (epc.explain)
+              |                       |
+              +-----------+-----------+
+                          |
+                          v
+                  Compile Decision
+              (result.plans / .skipped)
+                          |
+                          v
+                Provider Execution
+```
+
+The explanation is not generated after the fact, as a summary of what the
+decision layer did. Both branches read the *same* persisted evidence — the
+manifest's `{hash, properties, depends_on}` per node, plus the current
+`IRGraph` — and are required to agree, by construction, not by convention.
+Every violation below was exactly that requirement failing.
+
 This isn't aspirational. It's the rule that was already broken once: the
 first version of `explain_recompile` correctly detected that removing a
 dependency edge changed a node's hash (`ProviderLowering` recompiled it,
@@ -86,6 +114,23 @@ correct through the real pipeline, not just `explain`, with an explicit
 precondition check that the swapped resources really do hash identically in
 isolation — otherwise the test would pass for the wrong reason (a real
 property difference) instead of proving graph identity is respected.
+
+**Missing evidence.** The literal "a node depends on a resource that no
+longer exists" scenario turns out to be structurally unreachable through the
+real compile path — `normalize()` rejects any spec where a `dependsOn`
+targets an undeclared resource as `UndefinedReferenceError`, before an
+`IRGraph` with that shape can ever exist
+(`tests/test_missing_evidence.py::test_normalize_path_is_structurally_immune_to_this`).
+The real, narrower gap was one level down: `explain_recompile` is a public
+function, not gated behind `normalize()`'s validation, so a hand-built or
+otherwise corrupted `IRGraph` could still reach it directly and hit a bare
+`KeyError` three lines deep in a comprehension, with no indication of what
+was missing or why. Hardened to fail with the missing dependency id named
+explicitly instead
+(`tests/test_missing_evidence.py::test_explain_recompile_fails_clearly_on_a_hand_built_inconsistent_graph`).
+Consistent with the rest of this contract: nothing silently treats absent
+evidence as "must have been deleted" — every path either explains a real
+decision or fails loudly enough to say exactly what it couldn't explain.
 
 ## Current scope: pass-manager compiler + frozen IR v1 + config-driven providers
 
