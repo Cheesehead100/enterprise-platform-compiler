@@ -1,0 +1,9 @@
+metadata: {name: contract-example}
+spec:
+  resources:
+    - capability: secret
+      name: dbPassword
+      properties: {rotation: 30}
+    - capability: compute
+      name: appServer
+      dependsOn: ["secret.dbPassword"]

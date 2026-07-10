@@ -81,3 +81,45 @@ def test_explain_without_a_manifest_reports_everything_as_new(capsys):
 
     assert "Decision\n  RECOMPILED" in out
     assert "new node, no previous compile to compare against" in out
+
+
+def test_explain_reports_a_removed_dependency_not_unchanged(tmp_path, capsys):
+    """Regression: the Incremental Analysis line used to only check
+    is_new/own_properties_changed/caused_by, so a recompile caused solely by
+    a removed or added dependency edge (no endpoint's own hash changes --
+    see tests/test_dependency_swap.py) fell through to "unchanged" right
+    below a Decision of RECOMPILED. An explanation contradicting the
+    decision it explains is exactly what the Compiler Explainability
+    Contract forbids."""
+    before = """
+metadata: {name: x}
+spec:
+  resources:
+    - capability: compute
+      name: database
+    - capability: compute
+      name: service
+      dependsOn: ["compute.database"]
+"""
+    after = """
+metadata: {name: x}
+spec:
+  resources:
+    - capability: compute
+      name: service
+"""
+    before_file = tmp_path / "before.yaml"
+    after_file = tmp_path / "after.yaml"
+    before_file.write_text(before)
+    after_file.write_text(after)
+    manifest = str(tmp_path / "manifest.json")
+
+    main(["compile", str(before_file), "--manifest", manifest])
+    capsys.readouterr()
+
+    main(["compile", str(after_file), "--manifest", manifest, "--explain", "compute.service"])
+    out = capsys.readouterr().out
+
+    assert "Decision\n  RECOMPILED" in out
+    assert "Incremental Analysis       unchanged" not in out
+    assert "removed dependency: compute.database" in out

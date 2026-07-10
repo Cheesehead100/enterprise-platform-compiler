@@ -1,0 +1,12 @@
+metadata: {name: contract-example}
+spec:
+  resources:
+    - capability: compute
+      name: primary
+      properties: {tier: Standard}
+    - capability: compute
+      name: replica
+      properties: {tier: Standard}
+    - capability: compute
+      name: app
+      dependsOn: ["compute.primary"]

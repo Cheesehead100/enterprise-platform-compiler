@@ -1,0 +1,22 @@
+batch 1: ['compute.primary', 'compute.replica']
+batch 2: ['compute.app']
+skipped (unchanged): ['compute.primary', 'compute.replica']
+  compute.app -> fake: {"create": {}}
+
+Compiler Reasoning Trace
+
+Target
+  compute.app
+
+Decision
+  RECOMPILED
+
+Pipeline stages
+  [ok] Validation                 graph is structurally valid
+  [=]  Dependency Simplification  no edges changed for this node
+  [!]  Incremental Analysis       added dependency: compute.replica; removed dependency: compute.primary
+  [->] Batch Planning             assigned to batch 2
+  [->] Provider Lowering          fake provider selected, plan generated
+
+Causal trace
+  compute.app  (added dependency: compute.replica; removed dependency: compute.primary)

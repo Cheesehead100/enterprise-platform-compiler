@@ -1,0 +1,11 @@
+metadata: {name: contract-example}
+spec:
+  resources:
+    - capability: compute
+      name: database
+    - capability: compute
+      name: service
+      dependsOn: ["compute.database"]
+    - capability: compute
+      name: frontend
+      dependsOn: ["compute.service"]

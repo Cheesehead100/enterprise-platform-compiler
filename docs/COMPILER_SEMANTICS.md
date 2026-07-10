@@ -159,6 +159,10 @@ documented fact about what did.
 | **Graph Identity Invariant** | A node's id is part of compiler semantics. Identical content at different ids is not interchangeable. | `tests/test_rename_semantics.py`, `tests/test_dependency_swap.py` | `IRGraph.compute_hashes` hashed bare dependency-hash values; a rewired dependency with an unchanged-hash target produced the same parent hash before and after (commit `5ff5a39`) — a wrong pipeline *decision*, not just a wrong explanation. |
 | **Evidence Closure Invariant** | Every compiler decision must be derivable from evidence contained in the current `IRGraph` and the persisted manifest. Missing evidence is an error condition, never an implicit assumption (e.g. "absent means deleted"). | `tests/test_missing_evidence.py` | `explain_recompile` raised an unexplained `KeyError` when handed a graph with a dangling internal reference, instead of naming what evidence was missing (commit `2625247`). |
 
+Every row in the table above is also a runnable example, not just a citation
+— see [`examples/contracts/`](../examples/contracts/) for the `before.yaml`
+/ `after.yaml` pair and the real `epc compile` transcript behind each one.
+
 ## Keeping this document honest
 
 This file is not exempt from the rule it describes: every claim here must

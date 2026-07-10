@@ -1,0 +1,21 @@
+batch 1: ['secret.dbPassword']
+batch 2: ['compute.appServer']
+skipped (unchanged): ['compute.appServer', 'secret.dbPassword']
+
+Compiler Reasoning Trace
+
+Target
+  compute.appServer
+
+Decision
+  REUSED
+
+Pipeline stages
+  [ok] Validation                 graph is structurally valid
+  [=]  Dependency Simplification  no edges changed for this node
+  [=]  Incremental Analysis       unchanged
+  [->] Batch Planning             assigned to batch 2
+  [x]  Provider Lowering          skipped (reused from previous compile)
+
+Causal trace
+  compute.appServer  (unchanged)

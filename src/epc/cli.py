@@ -111,8 +111,19 @@ def _print_reasoning_trace(
         incremental_note = "new node, no previous compile to compare against"
     elif reason.own_properties_changed:
         incremental_note = "own properties changed"
-    elif reason.caused_by:
-        incremental_note = f"dependency hash changed ({', '.join(c.node_id for c in reason.caused_by)})"
+    elif reason.caused_by or reason.added_dependencies or reason.removed_dependencies:
+        # mirrors epc.explain.render_trace's own part-assembly -- a node can
+        # recompile from a changed dependency AND an added/removed edge at
+        # once (see tests/test_rename_semantics.py), so this must report
+        # every reason present, not just the first one checked.
+        parts = []
+        if reason.caused_by:
+            parts.append(f"dependency hash changed ({', '.join(c.node_id for c in reason.caused_by)})")
+        if reason.added_dependencies:
+            parts.append(f"added dependency: {', '.join(reason.added_dependencies)}")
+        if reason.removed_dependencies:
+            parts.append(f"removed dependency: {', '.join(reason.removed_dependencies)}")
+        incremental_note = "; ".join(parts)
     else:
         incremental_note = "unchanged"
 

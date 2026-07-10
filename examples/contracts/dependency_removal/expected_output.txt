@@ -1,0 +1,22 @@
+batch 1: ['compute.service']
+batch 2: ['compute.frontend']
+  compute.service -> fake: {"create": {}}
+  compute.frontend -> fake: {"create": {}}
+
+Compiler Reasoning Trace
+
+Target
+  compute.service
+
+Decision
+  RECOMPILED
+
+Pipeline stages
+  [ok] Validation                 graph is structurally valid
+  [=]  Dependency Simplification  no edges changed for this node
+  [!]  Incremental Analysis       removed dependency: compute.database
+  [->] Batch Planning             assigned to batch 1
+  [->] Provider Lowering          fake provider selected, plan generated
+
+Causal trace
+  compute.service  (removed dependency: compute.database)

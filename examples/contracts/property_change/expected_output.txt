@@ -1,0 +1,23 @@
+batch 1: ['secret.dbPassword']
+batch 2: ['compute.appServer']
+  secret.dbPassword -> fake: {"create": {"rotation": 30}}
+  compute.appServer -> fake: {"create": {}}
+
+Compiler Reasoning Trace
+
+Target
+  compute.appServer
+
+Decision
+  RECOMPILED
+
+Pipeline stages
+  [ok] Validation                 graph is structurally valid
+  [=]  Dependency Simplification  no edges changed for this node
+  [!]  Incremental Analysis       dependency hash changed (secret.dbPassword)
+  [->] Batch Planning             assigned to batch 2
+  [->] Provider Lowering          fake provider selected, plan generated
+
+Causal trace
+  compute.appServer  (depends on changed: secret.dbPassword)
+    secret.dbPassword  (edited: rotation: 90 -> 30)
