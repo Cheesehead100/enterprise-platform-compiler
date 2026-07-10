@@ -76,6 +76,12 @@ class ChangeReason:
 
 
 def explain_recompile(previous: PreviousState, after: IRGraph, node_id: str) -> ChangeReason:
+    if node_id not in after.nodes:
+        raise KeyError(
+            f"{node_id!r} is not in the current compiled graph -- it was removed (or never declared), "
+            "so there is no recompile decision to explain. Check epc.explain.previous_state_from_manifest's "
+            "keys, or the removed_dependencies of whatever node used to depend on it, instead."
+        )
     after_node = after.nodes[node_id]
 
     if node_id not in previous:

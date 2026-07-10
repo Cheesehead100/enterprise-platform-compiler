@@ -10,6 +10,31 @@ committed here — currently lives in the design conversation as two
 artifacts: the IaC Agent TDD and the Enterprise Platform Compiler
 architecture v0.2).
 
+## Compiler Explainability Contract
+
+> For every compiler decision, `epc.explain` must be able to reconstruct the
+> causal path from persisted compiler artifacts (the manifest — hash,
+> properties, dependency edges — plus the current `IRGraph`) alone. **An
+> explanation that disagrees with the decision it's explaining is a compiler
+> defect**, not an edge case to note and move past.
+
+This isn't aspirational. It's the rule that was already broken once: the
+first version of `explain_recompile` correctly detected that removing a
+dependency edge changed a node's hash (`ProviderLowering` recompiled it,
+correctly), but the explanation walked only *current* dependencies asking
+"did this one change," which structurally cannot see an edge that no longer
+exists — so it reported `recompiled = False` for a node the pipeline had
+just recompiled. Caught before shipping by reasoning through a suggested
+test case, not by a user filing a bug. Fixed in `epc.explain`
+(`removed_dependencies`/`added_dependencies` diffed against the manifest's
+persisted `depends_on`, not inferred from a per-dependency hash walk); see
+`tests/test_explain.py` and `tests/test_cascading_removal.py` for the
+regression coverage, and `tests/test_determinism.py` for the two invariants
+this contract also implies — compiling the same spec twice must produce
+byte-identical manifests and plans, and every node in a true no-op
+recompile must agree between the top-level `skipped` list and its own
+`--explain` verdict.
+
 ## Current scope: pass-manager compiler + frozen IR v1 + config-driven providers
 
 Pipeline stages implemented:
