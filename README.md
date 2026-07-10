@@ -153,35 +153,59 @@ python examples/generate_incremental_report.py
 
 ### Demo: "Why was this recompiled?" — a compiler reasoning trace
 
-`epc.explain.explain_recompile(before, after, node_id)` walks the causal
+`epc.explain.explain_recompile(previous, after, node_id)` walks the causal
 chain behind a recompile decision: a node's own properties changed, a
-dependency's hash changed (recurse into that dependency), or it's new.
-Reuses `incremental_before.yaml`/`incremental_after.yaml` again — one
-fixture pair, three reports. Real output:
+dependency's hash changed (recurse into that dependency), or it's new. Not a
+`CompilerPass` or `AnalysisPass` — both operate on one `IRGraph`, and this
+needs a *previous* state to compare against.
 
+**Works across two separate CLI invocations**, not just within one process:
+
+```bash
+python -m epc compile spec.yaml --manifest m.json                          # run 1
+python -m epc compile spec.yaml --manifest m.json --explain compute.appServer  # run 2
 ```
-Why was governance.catalog recompiled?
-governance.catalog  (depends on changed: compute.appServer)
+```
+Compiler Reasoning Trace
+
+Target
+  compute.appServer
+
+Decision
+  RECOMPILED
+
+Pipeline stages
+  [ok] Validation                 graph is structurally valid
+  [=]  Dependency Simplification  no edges changed for this node
+  [!]  Incremental Analysis       dependency hash changed (secret.dbPassword)
+  [->] Batch Planning             assigned to batch 3
+  [->] Provider Lowering          fake provider selected, plan generated
+
+Causal trace
   compute.appServer  (depends on changed: secret.dbPassword)
     secret.dbPassword  (edited: rotation: 90 -> 30)
 ```
 
-Not a `CompilerPass` or `AnalysisPass` — both operate on one `IRGraph`, and
-this needs two (before and after) to tell "this node's own properties
-changed" apart from "something it depends on changed, so mine did too."
-Deliberately **not** wired into the CLI's `--manifest` flow: the manifest
-(`epc.statestore`) only persists hashes, not full previous node state, so a
-real two-invocation CLI session can't reconstruct *why* a hash changed —
-only that it did. `examples/generate_explain_report.py` works within one
-process holding both compiled graphs; a CLI `--explain` flag would need the
-State Store to persist more than hashes first, which is real future work,
-not done here. `tests/test_explain.py` covers the edited node, the two-hop
-cascade, a brand-new node, and confirms an unrelated sibling (`bucket1`,
-which shares `dbPassword`'s parent `vpc` but doesn't depend on `dbPassword`
-itself) is correctly reported as not recompiled.
+This required extending `epc.statestore`'s manifest from `{node_id: hash}`
+to `{node_id: {hash, properties}}` — not a new State Store subsystem, one
+more field persisted alongside the hash already being written. That's
+enough for `PreviousNodeState` (`epc.explain`) to reconstruct "this node's
+own properties changed" vs. "a dependency's hash changed" from a manifest
+file alone, with no previous `IRGraph` in memory. `previous_state_from_graph`
+(in-process, two compiled graphs — what `examples/generate_explain_report.py`
+uses) and `previous_state_from_manifest` (loaded from disk — what the CLI
+uses) produce the identical `PreviousState` shape and are asserted
+equivalent in `tests/test_explain.py`.
+
+The `Pipeline stages` block is assembled from facts the compiler already
+computed for this compile — which batch the node landed in
+(`ExecutionPlan`), whether `DependencySimplificationPass` changed its edges
+(compared against a fresh `normalize()` of the same spec), which provider
+was resolved (`ProviderRegistry`) — not a new instrumentation layer bolted
+onto the passes themselves.
 
 ```bash
-python examples/generate_explain_report.py
+python examples/generate_explain_report.py   # in-process version, no CLI/manifest needed
 ```
 
 ### IR v1 — frozen and versioned (`epc/ir/v1/`)

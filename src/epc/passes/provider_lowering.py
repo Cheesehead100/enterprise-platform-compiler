@@ -40,7 +40,7 @@ class ProviderLowering:
         graph: IRGraph,
         execution_plan: ExecutionPlan,
         registry: ProviderRegistry,
-        previous_manifest: dict[str, str] | None = None,
+        previous_manifest: dict[str, dict] | None = None,
     ) -> LoweringResult:
         previous_manifest = previous_manifest or {}
         plans: dict[str, Plan] = {}
@@ -48,7 +48,7 @@ class ProviderLowering:
 
         for node_id in execution_plan.ordered_node_ids:
             node = graph.nodes[node_id]
-            if previous_manifest.get(node_id) == node.hash:
+            if previous_manifest.get(node_id, {}).get("hash") == node.hash:
                 skipped.add(node_id)
                 continue
 

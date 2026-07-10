@@ -58,7 +58,10 @@ def compile_spec(
     lowering = ProviderLowering().run(graph, execution_plan, registry, previous_manifest)
 
     if manifest_path:
-        save_manifest(manifest_path, {node_id: node.hash for node_id, node in graph.nodes.items()})
+        save_manifest(
+            manifest_path,
+            {node_id: {"hash": node.hash, "properties": node.properties} for node_id, node in graph.nodes.items()},
+        )
 
     return CompileResult(
         graph=graph,

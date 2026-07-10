@@ -16,7 +16,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT / "src"))
 sys.path.insert(0, str(_ROOT / "providers"))
 
-from epc.explain import explain_recompile, render_trace  # noqa: E402
+from epc.explain import explain_recompile, previous_state_from_graph, render_trace  # noqa: E402
 from epc.pipeline import compile_spec  # noqa: E402
 from epc.provider import ProviderRegistry  # noqa: E402
 from fake.provider import FakeProvider  # noqa: E402
@@ -40,9 +40,10 @@ def main() -> None:
         before = compile_spec(before_yaml, _registry(), manifest_path=manifest_path)
         after = compile_spec(after_yaml, _registry(), manifest_path=manifest_path)
 
+    previous = previous_state_from_graph(before.graph)
     for node_id in ("secret.dbPassword", "compute.appServer", "governance.catalog", "storage.archive", "network.vpc"):
         print(f"Why was {node_id} recompiled?" if node_id in after.plans else f"Why was {node_id} reused?")
-        reason = explain_recompile(before.graph, after.graph, node_id)
+        reason = explain_recompile(previous, after.graph, node_id)
         print(render_trace(reason))
         print()
 

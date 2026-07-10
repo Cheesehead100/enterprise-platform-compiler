@@ -43,3 +43,41 @@ def test_compile_with_providers_config_uses_the_real_cli_for_storage(tmp_path, c
     storage_line = next(line for line in out.splitlines() if line.strip().startswith("storage.dataLake"))
     assert f"-> {TERRAFORM_BINARY}:" in storage_line
     assert "terraform_data" in storage_line  # real plan diff, not the fake provider's echo
+
+
+def test_explain_across_two_real_invocations_traces_a_cascaded_recompile(tmp_path, capsys):
+    """The case --explain exists for: a node nobody edited (appServer)
+    recompiles because something it depends on (dbPassword) did -- and the
+    CLI can only know that by reading the manifest this same command wrote
+    on the previous, separate invocation."""
+    manifest = str(tmp_path / "manifest.json")
+    main(["compile", "tests/fixtures/incremental_before.yaml", "--manifest", manifest])
+    capsys.readouterr()
+
+    main(["compile", "tests/fixtures/incremental_after.yaml", "--manifest", manifest, "--explain", "compute.appServer"])
+    out = capsys.readouterr().out
+
+    assert "Target\n  compute.appServer" in out
+    assert "Decision\n  RECOMPILED" in out
+    assert "dependency hash changed (secret.dbPassword)" in out
+    assert "edited: rotation: 90 -> 30" in out
+
+
+def test_explain_reports_reused_for_an_unrelated_sibling(tmp_path, capsys):
+    manifest = str(tmp_path / "manifest.json")
+    main(["compile", "tests/fixtures/incremental_before.yaml", "--manifest", manifest])
+    capsys.readouterr()
+
+    main(["compile", "tests/fixtures/incremental_after.yaml", "--manifest", manifest, "--explain", "storage.bucket1"])
+    out = capsys.readouterr().out
+
+    assert "Decision\n  REUSED" in out
+    assert "Provider Lowering          skipped (reused from previous compile)" in out
+
+
+def test_explain_without_a_manifest_reports_everything_as_new(capsys):
+    main(["compile", "tests/fixtures/incremental_after.yaml", "--explain", "network.vpc"])
+    out = capsys.readouterr().out
+
+    assert "Decision\n  RECOMPILED" in out
+    assert "new node, no previous compile to compare against" in out

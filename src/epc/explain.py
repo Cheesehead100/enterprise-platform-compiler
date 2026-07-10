@@ -2,15 +2,21 @@
 behind epc.pipeline's recompile/reuse decision.
 
 Not a CompilerPass or AnalysisPass: both operate on one IRGraph, and this
-needs two (the previous compile's graph and the current one) to tell "own
+needs a *previous* state to compare the current graph against, to tell "own
 properties changed" apart from "a dependency's hash changed, so mine did
-too." epc.statestore's manifest only persists hashes, not full previous node
-state, so this only works within one process holding both compiled IRGraphs
-in memory (see examples/generate_explain_report.py) -- it is deliberately
-not wired into the CLI's separate-process --manifest flow, where the
-previous graph's properties genuinely aren't available to reconstruct.
-Wiring that up is real future work (a State Store that persists more than
-hashes, per the architecture doc's Checkpoint direction), not done here.
+too." That previous state can come from two places, both producing the same
+PreviousState shape:
+
+- an in-memory IRGraph from an earlier compile in the same process
+  (previous_state_from_graph -- what examples/generate_explain_report.py uses)
+- a manifest loaded from disk (previous_state_from_manifest -- what
+  epc.cli's --explain flag uses, across two separate `epc compile`
+  invocations)
+
+epc.statestore persists {hash, properties} per node specifically so the
+manifest-backed path works without needing the full previous IRGraph in
+memory -- explaining a recompile across CLI invocations doesn't require any
+richer State Store than what already exists.
 """
 
 from __future__ import annotations
@@ -19,6 +25,26 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .ir import IRGraph
+
+
+@dataclass
+class PreviousNodeState:
+    hash: str
+    properties: dict[str, Any]
+
+
+PreviousState = dict[str, PreviousNodeState]
+
+
+def previous_state_from_graph(graph: IRGraph) -> PreviousState:
+    return {node_id: PreviousNodeState(hash=node.hash, properties=node.properties) for node_id, node in graph.nodes.items()}
+
+
+def previous_state_from_manifest(manifest: dict[str, dict[str, Any]]) -> PreviousState:
+    return {
+        node_id: PreviousNodeState(hash=entry["hash"], properties=entry.get("properties", {}))
+        for node_id, entry in manifest.items()
+    }
 
 
 @dataclass
@@ -34,30 +60,30 @@ class ChangeReason:
         return self.is_new or self.own_properties_changed or bool(self.caused_by)
 
 
-def explain_recompile(before: IRGraph, after: IRGraph, node_id: str) -> ChangeReason:
+def explain_recompile(previous: PreviousState, after: IRGraph, node_id: str) -> ChangeReason:
     after_node = after.nodes[node_id]
 
-    if node_id not in before.nodes:
+    if node_id not in previous:
         return ChangeReason(node_id=node_id, is_new=True)
 
-    before_node = before.nodes[node_id]
-    own_changed = before_node.properties != after_node.properties
+    prev = previous[node_id]
+    own_changed = prev.properties != after_node.properties
     diff: dict[str, tuple[Any, Any]] = {}
     if own_changed:
-        keys = set(before_node.properties) | set(after_node.properties)
+        keys = set(prev.properties) | set(after_node.properties)
         diff = {
-            key: (before_node.properties.get(key), after_node.properties.get(key))
+            key: (prev.properties.get(key), after_node.properties.get(key))
             for key in keys
-            if before_node.properties.get(key) != after_node.properties.get(key)
+            if prev.properties.get(key) != after_node.properties.get(key)
         }
 
     # ponytail: re-explains a shared dependency once per path that reaches it
     # (no memoization) -- fine at this scale, would matter on a graph with
     # heavy diamond fan-in.
     caused_by = [
-        explain_recompile(before, after, dep_id)
+        explain_recompile(previous, after, dep_id)
         for dep_id in sorted(after_node.depends_on)
-        if dep_id not in before.nodes or before.nodes[dep_id].hash != after.nodes[dep_id].hash
+        if dep_id not in previous or previous[dep_id].hash != after.nodes[dep_id].hash
     ]
 
     return ChangeReason(node_id=node_id, own_properties_changed=own_changed, property_diff=diff, caused_by=caused_by)

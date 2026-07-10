@@ -134,7 +134,7 @@ def test_provider_lowering_dispatches_per_capability_and_honors_manifest_skips()
     execution_plan = BatchPlanner().plan(graph)
     graph.compute_hashes(execution_plan.ordered_node_ids)
 
-    previous_manifest = {"storage.dataLake": graph.nodes["storage.dataLake"].hash}
+    previous_manifest = {"storage.dataLake": {"hash": graph.nodes["storage.dataLake"].hash, "properties": {}}}
     result = ProviderLowering().run(graph, execution_plan, _full_registry(), previous_manifest)
 
     assert result.skipped == {"storage.dataLake"}
