@@ -1,0 +1,43 @@
+# "Current compile" -- one commit after incremental_before.yaml. Three real
+# changes: dbPassword.rotation 90 -> 30, network.oldVnet removed,
+# storage.archive added. vpc/bucket1/bucket2 are untouched and should be
+# reused; appServer and catalog should recompile even though neither was
+# edited directly, because dbPassword's new hash propagates through them.
+metadata:
+  name: incremental-report-example
+spec:
+  resources:
+    - capability: network
+      name: vpc
+      properties: {}
+
+    - capability: storage
+      name: bucket1
+      dependsOn: ["network.vpc"]
+      properties: {}
+
+    - capability: storage
+      name: bucket2
+      dependsOn: ["network.vpc"]
+      properties: {}
+
+    - capability: secret
+      name: dbPassword
+      dependsOn: ["network.vpc"]
+      properties:
+        rotation: 30
+
+    - capability: compute
+      name: appServer
+      dependsOn: ["storage.bucket1", "storage.bucket2", "secret.dbPassword"]
+      properties: {}
+
+    - capability: governance
+      name: catalog
+      dependsOn: ["compute.appServer"]
+      properties: {}
+
+    - capability: storage
+      name: archive
+      dependsOn: ["network.vpc"]
+      properties: {}

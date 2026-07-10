@@ -133,6 +133,24 @@ numbers, so the demo and the regression test can't drift apart.
 python examples/generate_demo_data.py
 ```
 
+### Demo: "What changed?" — an incremental compilation report
+
+`tests/fixtures/incremental_before.yaml` / `incremental_after.yaml` are the
+same 7-node graph one commit apart: `dbPassword.rotation` changed 90 → 30,
+`network.oldVnet` was removed, `storage.archive` was added.
+`examples/generate_incremental_report.py` compiles both against the same
+manifest file, through the real pipeline, and reports the compiler's
+decision — not a cache-hit-rate number, which nodes it actually recompiled
+and why. The interesting case: `appServer` and `catalog` were never edited,
+but recompile anyway because `dbPassword`'s new hash propagates through them
+(`IRGraph.compute_hashes`) — while `bucket1`/`bucket2`, siblings of
+`dbPassword` that don't depend on it, are reused. `tests/test_incremental_report.py`
+asserts all of this against the same two fixtures.
+
+```bash
+python examples/generate_incremental_report.py
+```
+
 ### IR v1 — frozen and versioned (`epc/ir/v1/`)
 
 The IR is the compiler's ABI: every provider, every future optimization
