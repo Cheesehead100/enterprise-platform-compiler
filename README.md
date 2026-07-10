@@ -151,6 +151,39 @@ asserts all of this against the same two fixtures.
 python examples/generate_incremental_report.py
 ```
 
+### Demo: "Why was this recompiled?" — a compiler reasoning trace
+
+`epc.explain.explain_recompile(before, after, node_id)` walks the causal
+chain behind a recompile decision: a node's own properties changed, a
+dependency's hash changed (recurse into that dependency), or it's new.
+Reuses `incremental_before.yaml`/`incremental_after.yaml` again — one
+fixture pair, three reports. Real output:
+
+```
+Why was governance.catalog recompiled?
+governance.catalog  (depends on changed: compute.appServer)
+  compute.appServer  (depends on changed: secret.dbPassword)
+    secret.dbPassword  (edited: rotation: 90 -> 30)
+```
+
+Not a `CompilerPass` or `AnalysisPass` — both operate on one `IRGraph`, and
+this needs two (before and after) to tell "this node's own properties
+changed" apart from "something it depends on changed, so mine did too."
+Deliberately **not** wired into the CLI's `--manifest` flow: the manifest
+(`epc.statestore`) only persists hashes, not full previous node state, so a
+real two-invocation CLI session can't reconstruct *why* a hash changed —
+only that it did. `examples/generate_explain_report.py` works within one
+process holding both compiled graphs; a CLI `--explain` flag would need the
+State Store to persist more than hashes first, which is real future work,
+not done here. `tests/test_explain.py` covers the edited node, the two-hop
+cascade, a brand-new node, and confirms an unrelated sibling (`bucket1`,
+which shares `dbPassword`'s parent `vpc` but doesn't depend on `dbPassword`
+itself) is correctly reported as not recompiled.
+
+```bash
+python examples/generate_explain_report.py
+```
+
 ### IR v1 — frozen and versioned (`epc/ir/v1/`)
 
 The IR is the compiler's ABI: every provider, every future optimization
