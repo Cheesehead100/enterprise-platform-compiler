@@ -60,7 +60,14 @@ def compile_spec(
     if manifest_path:
         save_manifest(
             manifest_path,
-            {node_id: {"hash": node.hash, "properties": node.properties} for node_id, node in graph.nodes.items()},
+            {
+                node_id: {
+                    "hash": node.hash,
+                    "properties": node.properties,
+                    "depends_on": sorted(node.depends_on),
+                }
+                for node_id, node in graph.nodes.items()
+            },
         )
 
     return CompileResult(

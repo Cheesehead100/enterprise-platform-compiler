@@ -1,10 +1,16 @@
 """Stand-in for the architecture doc's State Store (§05) — enough to prove
 incremental compilation (§02) actually skips unchanged work, and enough for
 epc.explain to reconstruct *why* a node's hash changed across two separate
-CLI invocations. Manifest entries are `{node_id: {"hash": ..., "properties": ...}}`
-— properties are stored alongside the hash specifically so a later compile
-can tell "this node's own properties changed" apart from "a dependency's
-hash changed," without needing the full previous IRGraph in memory.
+CLI invocations. Manifest entries are
+`{node_id: {"hash": ..., "properties": ..., "depends_on": [...]}}` —
+properties and dependency edges are stored alongside the hash specifically
+so a later compile can tell "this node's own properties changed" apart from
+"a dependency's hash changed" apart from "a dependency edge was added or
+removed," without needing the full previous IRGraph in memory. The
+dependency-edge case is the one a hash-only manifest silently gets wrong:
+wiring a node to an existing, otherwise-untouched neighbor changes the
+node's hash without changing that neighbor's, so it's invisible unless the
+previous edge set is available to diff against directly.
 
 ponytail: single JSON file, no locking — fine for one compiler process at a
 time. Swap for the real State Store when concurrent/multi-instance compiles

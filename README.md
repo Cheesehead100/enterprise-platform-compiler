@@ -187,15 +187,32 @@ Causal trace
 ```
 
 This required extending `epc.statestore`'s manifest from `{node_id: hash}`
-to `{node_id: {hash, properties}}` — not a new State Store subsystem, one
-more field persisted alongside the hash already being written. That's
+to `{node_id: {hash, properties, depends_on}}` — not a new State Store
+subsystem, fields persisted alongside the hash already being written. That's
 enough for `PreviousNodeState` (`epc.explain`) to reconstruct "this node's
-own properties changed" vs. "a dependency's hash changed" from a manifest
-file alone, with no previous `IRGraph` in memory. `previous_state_from_graph`
-(in-process, two compiled graphs — what `examples/generate_explain_report.py`
-uses) and `previous_state_from_manifest` (loaded from disk — what the CLI
-uses) produce the identical `PreviousState` shape and are asserted
-equivalent in `tests/test_explain.py`.
+own properties changed" vs. "a dependency's hash changed" vs. "a dependency
+edge was added or removed" from a manifest file alone, with no previous
+`IRGraph` in memory. `previous_state_from_graph` (in-process, two compiled
+graphs — what `examples/generate_explain_report.py` uses) and
+`previous_state_from_manifest` (loaded from disk — what the CLI uses)
+produce the identical `PreviousState` shape and are asserted equivalent in
+`tests/test_explain.py`.
+
+**A real bug this surfaced, caught before shipping rather than after:** the
+first version only compared each *current* dependency's hash against its
+previous hash — walking `node.depends_on` and asking "did this one change."
+That misses a dependency edge being added or removed entirely: wiring
+`compute.app` to an existing, otherwise-untouched `network.z` changes
+`app`'s hash (its dependency-hash list is now longer) without changing
+`z`'s hash at all, so the per-dependency walk never visits the actual cause
+and reports `recompiled = False` — directly contradicting what the real
+pipeline does (it correctly recompiles `app`, since `app`'s own hash
+changed). Fixed by diffing the dependency *set* against the manifest's
+persisted `depends_on`, not just re-checking each current dependency's hash.
+`tests/test_explain.py` locks in both directions (edge added / edge
+removed) plus a YAML-key-reorder case (properties are hashed with
+`sort_keys=True`, so key order was never semantic, but wasn't previously
+asserted).
 
 The `Pipeline stages` block is assembled from facts the compiler already
 computed for this compile — which batch the node landed in
