@@ -37,10 +37,21 @@ class IRGraph:
 
         `order` must be a topological order (see epc.dag.topological_batches) —
         a node's dependencies must be hashed before the node itself.
+
+        The `deps` payload is `(dep_id, dep_hash)` pairs, not bare hash values.
+        Two structurally-identical-but-differently-named dependencies (e.g. a
+        renamed secret with unchanged properties) produce the same hash value,
+        so hashing only the *values* makes a node's hash blind to which
+        specific node it actually depends on -- a real decision-correctness
+        bug, not just a cosmetic one: ProviderLowering would silently SKIP a
+        node whose wiring changed to point at a different resource, as long
+        as that resource happened to hash the same. Pairing each hash with
+        its dependency id closes that: the payload differs whenever the
+        dependency SET differs, regardless of whether the values collide.
         """
         for node_id in order:
             node = self.nodes[node_id]
-            dep_hashes = sorted(self.nodes[dep].hash for dep in node.depends_on)
+            dep_hashes = sorted((dep, self.nodes[dep].hash) for dep in node.depends_on)
             payload = json.dumps(
                 {"capability": node.capability, "properties": node.properties, "deps": dep_hashes},
                 sort_keys=True,

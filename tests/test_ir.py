@@ -86,3 +86,29 @@ def test_to_execution_plan_wraps_batches_with_ordering_preserved():
     plan = to_execution_plan([["storage.dataLake"], ["network.endpoint"]])
     assert [b.node_ids for b in plan.batches] == [["storage.dataLake"], ["network.endpoint"]]
     assert plan.ordered_node_ids == ["storage.dataLake", "network.endpoint"]
+
+
+def test_a_node_hash_distinguishes_which_specific_dependency_it_points_at():
+    """Regression: two structurally-identical dependencies (same capability,
+    same properties) must NOT make a parent's hash blind to which one it
+    actually depends on. The hash payload used to fold dependencies down to
+    bare hash *values* (sorted(dep.hash for dep in depends_on)) -- two
+    same-shaped-but-differently-named dependencies collide, so a node
+    "rewired" from one to the other hashed identically before and after,
+    which would make ProviderLowering silently skip a real change."""
+    old_secret = StorageNode(id="storage.old", capability="storage", properties={"tier": "Standard_LRS"})
+    new_secret = StorageNode(id="storage.new", capability="storage", properties={"tier": "Standard_LRS"})
+
+    pointing_at_old = NetworkNode(id="network.consumer", capability="network", depends_on={"storage.old"})
+    graph_a = IRGraph(nodes={"storage.old": old_secret, "network.consumer": pointing_at_old})
+    graph_a.compute_hashes(["storage.old", "network.consumer"])
+
+    pointing_at_new = NetworkNode(id="network.consumer", capability="network", depends_on={"storage.new"})
+    graph_b = IRGraph(nodes={"storage.new": new_secret, "network.consumer": pointing_at_new})
+    graph_b.compute_hashes(["storage.new", "network.consumer"])
+
+    # the two dependencies really are hash-identical in isolation -- that's
+    # the precondition for this bug, not a mistake in the fixture
+    assert graph_a.nodes["storage.old"].hash == graph_b.nodes["storage.new"].hash
+
+    assert graph_a.nodes["network.consumer"].hash != graph_b.nodes["network.consumer"].hash

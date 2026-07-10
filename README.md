@@ -35,6 +35,36 @@ byte-identical manifests and plans, and every node in a true no-op
 recompile must agree between the top-level `skipped` list and its own
 `--explain` verdict.
 
+**A second, more serious violation — this one a decision bug, not just an
+explanation bug — surfaced by stress-testing a rename** (`tests/fixtures`
+has no rename tracking; a rename is legitimately "remove the old id, add a
+new one"). `IRGraph.compute_hashes` folded a node's dependencies down to
+*bare hash values* (`sorted(dep.hash for dep in depends_on)`). Two
+structurally-identical-but-differently-named dependencies (same capability,
+same properties — e.g. a secret renamed with its rotation policy
+unchanged) hash identically, so a node "rewired" from the old id to the new
+one hashed **the same before and after** — `ProviderLowering` would have
+silently skipped a resource whose actual wiring changed, as long as the new
+target happened to hash the same as the old one. This is the pipeline
+producing a wrong *decision*, not a wrong explanation of a right one — the
+more serious class. Fixed by hashing `(dep_id, dep_hash)` pairs instead of
+bare hash values, so the payload differs whenever the dependency *set*
+differs regardless of value collisions
+(`tests/test_ir.py::test_a_node_hash_distinguishes_which_specific_dependency_it_points_at`,
+`tests/test_rename_semantics.py`,
+`tests/test_explanation_completeness.py::test_rename_agrees_for_every_node`).
+
+**Explanation Completeness** (the general form of the contract above, not
+just the property/dependency-edge cases that motivated it):
+`tests/test_explanation_completeness.py` doesn't test one hand-picked node —
+for every fixture pair, it iterates every node in the compiled graph and
+asserts `(node_id in result.plans) == explain_recompile(...).recompiled`
+holds for *all* of them. This is the test that would have caught the first
+violation above without anyone having to think of "removed dependency" as a
+specific scenario first — the discipline going forward is to prefer this
+shape of test (agreement across every node) over one-node spot checks
+whenever a fixture pair already exists.
+
 ## Current scope: pass-manager compiler + frozen IR v1 + config-driven providers
 
 Pipeline stages implemented:

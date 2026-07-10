@@ -99,13 +99,6 @@ def explain_recompile(previous: PreviousState, after: IRGraph, node_id: str) -> 
         }
 
     current_deps = set(after_node.depends_on)
-    # A dependency EDGE can be added or removed without either endpoint's own
-    # hash changing (e.g. wiring a node to an existing, untouched neighbor) --
-    # that must be checked as a set difference, not discovered by walking
-    # current_deps and asking "did this one's hash change," which silently
-    # misses edges that no longer exist at all.
-    added_deps = sorted(current_deps - prev.depends_on)
-    removed_deps = sorted(prev.depends_on - current_deps)
 
     # ponytail: re-explains a shared dependency once per path that reaches it
     # (no memoization) -- fine at this scale, would matter on a graph with
@@ -115,6 +108,20 @@ def explain_recompile(previous: PreviousState, after: IRGraph, node_id: str) -> 
         for dep_id in sorted(current_deps)
         if dep_id not in previous or previous[dep_id].hash != after.nodes[dep_id].hash
     ]
+
+    # A dependency EDGE can be added or removed without either endpoint's own
+    # hash changing (e.g. wiring a node to an existing, untouched neighbor) --
+    # that must be checked as a set difference, not discovered by walking
+    # current_deps and asking "did this one's hash change," which silently
+    # misses edges that no longer exist at all. But an added edge to a node
+    # that's new or itself changed is already fully explained by caused_by
+    # above -- reporting it in added_dependencies too would name the same
+    # node twice for overlapping reasons (a "clean explanation" regression a
+    # rename -- old id removed, new id added on the same edge -- surfaces
+    # immediately: see tests/test_explain.py's rename case).
+    already_explained = {c.node_id for c in caused_by}
+    added_deps = sorted((current_deps - prev.depends_on) - already_explained)
+    removed_deps = sorted(prev.depends_on - current_deps)
 
     return ChangeReason(
         node_id=node_id,
