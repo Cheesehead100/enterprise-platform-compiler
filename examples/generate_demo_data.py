@@ -46,14 +46,22 @@ def main() -> None:
     critical_path = CriticalPathPass().run(before)
     stats = GraphStatisticsPass().run(before)
 
+    naive_steps = len(before.nodes)
+    batched_steps = len(batches)
+
     data = {
         "nodes": sorted(before.nodes),
         "edges_before": before_edges,
         "edges_after": after_edges,
         "edges_removed": removed_edges,
         "batches": batches,
-        "naive_sequential_steps": len(before.nodes),
-        "batched_steps": len(batches),
+        "naive_sequential_steps": naive_steps,
+        "batched_steps": batched_steps,
+        # naive_steps / batched_steps: how many fewer sequential scheduling
+        # steps batching produces here. Not a wall-clock speedup claim --
+        # actual provisioning time also depends on provider/API latency,
+        # which this number says nothing about.
+        "parallelism_factor": round(naive_steps / batched_steps, 2),
         "critical_path": {"length": critical_path.length, "path": critical_path.path},
         "graph_statistics": {
             "node_count": stats.node_count,

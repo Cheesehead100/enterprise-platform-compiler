@@ -49,6 +49,7 @@ def test_naive_sequential_would_take_six_steps_batched_takes_four():
     batched_steps = len(plan.batches)
     assert naive_steps == 6
     assert batched_steps == 4
+    assert round(naive_steps / batched_steps, 2) == 1.5
 
 
 def test_critical_path_is_four_hops():
