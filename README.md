@@ -65,6 +65,28 @@ specific scenario first — the discipline going forward is to prefer this
 shape of test (agreement across every node) over one-node spot checks
 whenever a fixture pair already exists.
 
+**Graph Identity Invariant**, the general principle the hash-collision fix
+above is one instance of:
+
+> A node's identity (its id) is part of compiler semantics, not incidental
+> to it. Two nodes with identical properties but different identities are
+> not interchangeable — depending on one instead of the other is a real
+> change, whether or not either node's own content differs.
+
+The rename case (`tests/test_rename_semantics.py`) and a second, structurally
+distinct case — swapping between two *already-coexisting*, identically-shaped
+resources (`tests/test_dependency_swap.py`, `compute.app` switching from
+`compute.primary` to `compute.replica`, both present and unchanged before and
+after) — both had to be checked, not assumed identical, because they exercise
+different code inside `explain_recompile`: a rename's new target is genuinely
+new (`caused_by`'s `is_new` branch catches it), while a swap's new target
+already exists with an unchanged hash (only the `added_dependencies`/
+`removed_dependencies` set-difference path catches it). Both are confirmed
+correct through the real pipeline, not just `explain`, with an explicit
+precondition check that the swapped resources really do hash identically in
+isolation — otherwise the test would pass for the wrong reason (a real
+property difference) instead of proving graph identity is respected.
+
 ## Current scope: pass-manager compiler + frozen IR v1 + config-driven providers
 
 Pipeline stages implemented:
